@@ -6,7 +6,7 @@ public class MappingValidator implements Validator {
 
   private static final java.util.List<String> MAPPING_ANNOTATIONS =
       java.util.List.of(
-          // "org.springframework.web.bind.annotation.GetMapping",
+          "org.springframework.web.bind.annotation.GetMapping",
           "org.springframework.web.bind.annotation.PostMapping",
           "org.springframework.web.bind.annotation.PutMapping",
           "org.springframework.web.bind.annotation.DeleteMapping",

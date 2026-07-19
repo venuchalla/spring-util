@@ -22,7 +22,7 @@ public class LoggingAspect {
 
   private final HttpServletRequest request;
 
-  @Before("execution(* com.example.resilience.services.*.*(..))")
+  @Before("@annotation(com.example.springutil.annotations.LogBeforeMethod)")
   public void beforeEnterService(JoinPoint joinPoint) {
     log.info("log before service method execution : {} ", joinPoint.getClass());
   }
@@ -39,18 +39,6 @@ public class LoggingAspect {
     log.info("After advice value passed from the annotation : {}", value);
     String methodName = joinPoint.getSignature().toShortString();
     log.info("After advice Executed: {} ", methodName);
-  }
-
-  @Around("execution(* com.example.resilience.services.*.*(..))")
-  public Object logWhileEnterAndExistServiceMethod(ProceedingJoinPoint proceedingJoinPoint)
-      throws Throwable {
-    log.info(
-        "Around advice for method {} is started ",
-        proceedingJoinPoint.getSignature().toShortString());
-    Object result = proceedingJoinPoint.proceed();
-    log.info(
-        "Around advice method {} is completed", proceedingJoinPoint.getSignature().toShortString());
-    return result;
   }
 
   @Around("@annotation(com.example.resilience.annotations.LogRequest)")

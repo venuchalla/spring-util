@@ -17,6 +17,5 @@ public @interface LogRequest {
   enum LogLevel {
     NONE,
     FULL,
-    BRIEF
   }
 }

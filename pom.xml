@@ -10,7 +10,8 @@
   <groupId>com.example</groupId>
   <artifactId>springutil</artifactId>
   <version>0.0.1-SNAPSHOT</version>
-  <name/>
+  <packaging>jar</packaging>
+  <name>springutil</name>
   <description/>
   <url/>
   <licenses>
@@ -25,6 +26,19 @@
     <tag/>
     <url/>
   </scm>
+
+  <distributionManagement>
+    <repository>
+      <id>github</id>
+      <name>GitHub Packages</name>
+      <url>https://maven.pkg.github.com/venuchalla/springutil</url>
+    </repository>
+    <snapshotRepository>
+      <id>github</id>
+      <name>GitHub Packages Snapshots</name>
+      <url>https://maven.pkg.github.com/venuchalla/springutil</url>
+    </snapshotRepository>
+  </distributionManagement>
   <properties>
     <java.version>19</java.version>
   </properties>
@@ -45,19 +59,6 @@
       <version>0.2.10</version>
     </dependency>
   </dependencies>
-
-  <distributionManagement>
-    <repository>
-      <id>github</id>
-      <name>GitHub Packages</name>
-      <url>https://maven.pkg.github.com/venuchalla/springutil</url>
-    </repository>
-    <snapshotRepository>
-      <id>github</id>
-      <name>GitHub Packages Snapshots</name>
-      <url>https://maven.pkg.github.com/venuchalla/springutil</url>
-    </snapshotRepository>
-  </distributionManagement>
   <repositories>
     <repository>
       <releases>
