@@ -58,4 +58,17 @@
       <url>https://maven.pkg.github.com/venuchalla/springutil</url>
     </snapshotRepository>
   </distributionManagement>
+  <repositories>
+    <repository>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+      <id>github</id>
+      <url>https://maven.pkg.github.com/venuchalla/springparent</url>
+    </repository>
+  </repositories>
 </project>
