@@ -37,6 +37,7 @@ public class RqAndRsLogFilter implements Filter {
     }
     try {
       String traceId = UUID.randomUUID().toString();
+      log.info("RqAndRsLogFilter =======: {} ", traceId);
       MDC.put(TRACE_ID, traceId);
       filterChain.doFilter(wrappedRequest, wrappedResponse);
     } finally {

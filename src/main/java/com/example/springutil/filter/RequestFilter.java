@@ -4,9 +4,11 @@ import jakarta.servlet.*;
 import jakarta.servlet.annotation.WebFilter;
 import java.io.IOException;
 import lombok.CustomLog;
+import org.springframework.stereotype.Component;
 
 @WebFilter(filterName = "RequestFilter", urlPatterns = "/*")
 @CustomLog
+@Component
 public class RequestFilter implements Filter {
   @Override
   public void doFilter(
