@@ -72,14 +72,4 @@
       <url>https://maven.pkg.github.com/venuchalla/springparent</url>
     </repository>
   </repositories>
-  <build>
-    <plugins>
-      <plugin>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <configuration>
-          <proc>none</proc>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
 </project>
