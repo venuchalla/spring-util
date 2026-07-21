@@ -1,0 +1,29 @@
+name: Pull Request Build
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 19
+          server-id: github
+          #cache: maven
+
+      - name: Build and Test
+        run: |
+          mvn clean verify
