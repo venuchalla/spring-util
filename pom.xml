@@ -21,10 +21,9 @@
     <developer/>
   </developers>
   <scm>
-    <connection/>
-    <developerConnection/>
-    <tag/>
-    <url/>
+    <connection>scm:git:https://github.com/venuchalla/spring-util.git</connection>
+    <developerConnection>scm:git:https://github.com/venuchalla/spring-util.git</developerConnection>
+    <url>https://github.com/venuchalla/spring-util</url>
   </scm>
 
   <distributionManagement>
