@@ -55,7 +55,8 @@ jobs:
       - name: Build Artifact
         run: |
           mvn clean package
-
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Deploy Artifact
         run: |
