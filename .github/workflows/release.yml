@@ -1,0 +1,71 @@
+name: Release Maven Artifact
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+
+  release:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 19
+          cache: maven
+          server-id: github
+
+
+      - name: Configure Git
+        run: |
+          git config user.name "venu challa"
+          git config user.email "venuchalla1993@gmail.com"
+
+
+      - name: Generate Release Version
+        id: version
+        run: |
+          VERSION=$(date +'%Y.%m.%d').${GITHUB_RUN_NUMBER}-SNAPSHOT
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+
+      - name: Update Maven Version
+        run: |
+          mvn versions:set \
+          -DnewVersion=${{ steps.version.outputs.VERSION }}
+
+          mvn versions:commit
+
+
+      - name: Build Artifact
+        run: |
+          mvn clean package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy Artifact
+        run: |
+          mvn deploy
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
+      - name: Create Git Tag
+        run: |
+          git tag v${{ steps.version.outputs.VERSION }}
+          git push origin v${{ steps.version.outputs.VERSION }}
