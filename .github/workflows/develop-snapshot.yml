@@ -59,6 +59,7 @@ jobs:
 
           echo "Base version: $BASE_VERSION"
           echo "Build version: $VERSION"
+
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -84,4 +85,4 @@ jobs:
 
       - name: Show Version
         run: |
-          echo "Deployed ${{ steps.version.outputs.version }}"
+          echo "✅ Deployed ${{ steps.version.outputs.version }}"

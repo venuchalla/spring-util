@@ -49,7 +49,11 @@ jobs:
       - name: Derive final version
         id: version
         run: |
-          CURRENT_VERSION=$(mvn -q help:evaluate -Dexpression=project.version -DforceStdout)
+          if ! CURRENT_VERSION=$(mvn -q help:evaluate -Dexpression=project.version -DforceStdout); then
+            echo "::error::Failed to resolve project.version - re-running verbosely for diagnostics:"
+            mvn help:evaluate -Dexpression=project.version -DforceStdout
+            exit 1
+          fi
           echo "Current version: $CURRENT_VERSION"
 
           # Strip -SNAPSHOT, then strip -RC / -RC0 / -RC.3 style suffixes,
@@ -65,12 +69,16 @@ jobs:
           echo "Final version: $FINAL_VERSION"
           echo "final_version=$FINAL_VERSION" >> "$GITHUB_OUTPUT"
           echo "release_branch=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+        env:
+          GITHUB_TOKEN: ${{  secrets.GITHUB_TOKEN  }}
 
       - name: Set final version in pom.xml
         run: |
           mvn -B versions:set \
             -DnewVersion="${{ steps.version.outputs.final_version }}" \
             -DgenerateBackupPoms=false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Commit final version on release branch
         id: commit
