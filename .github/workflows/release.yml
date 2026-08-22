@@ -1,26 +1,33 @@
-name: Release Maven Artifact
+name: Finalize Release (auto version)
 
+# Manually triggered - but with NO typed inputs. Run this from the Actions
+# tab, select the release branch (e.g. release/1.2.0) in the branch
+# dropdown, and click "Run workflow". That branch selection is what gets
+# checked out and finalized.
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch: {}
 
 permissions:
   contents: write
   packages: write
 
 jobs:
-
-  release:
-
+  finalize:
     runs-on: ubuntu-latest
-
     steps:
+      - name: Verify this is a release branch
+        run: |
+          if [[ ! "${{ github.ref_name }}" =~ ^release/.+ ]]; then
+            echo "::error::This workflow can only be run against a release/* branch. You selected: '${{ github.ref_name }}'. Re-run it and pick a release/* branch from the branch dropdown."
+            exit 1
+          fi
+          echo "OK: running against release branch '${{ github.ref_name }}'"
 
-      - name: Checkout source
+      - name: Checkout selected release branch
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}   # needs push rights to master/develop, see notes
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -30,43 +37,93 @@ jobs:
           cache: maven
           server-id: github
 
-
       - name: Configure Git
         run: |
-          git config user.name "venu challa"
+          git config user.name "venuchalla"
           git config user.email "venuchalla1993@gmail.com"
 
-
-      - name: Generate Release Version
+      # -----------------------------------------------------------------
+      # 1. Derive the final version by stripping -SNAPSHOT / -RC.N off
+      #    whatever version is currently in pom.xml. No manual input.
+      # -----------------------------------------------------------------
+      - name: Derive final version
         id: version
         run: |
-          VERSION=$(date +'%Y.%m.%d').${GITHUB_RUN_NUMBER}-SNAPSHOT
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          CURRENT_VERSION=$(mvn -q help:evaluate -Dexpression=project.version -DforceStdout)
+          echo "Current version: $CURRENT_VERSION"
 
+          # Strip -SNAPSHOT, then strip -RC / -RC0 / -RC.3 style suffixes,
+          # in either order (handles "1.2.0-RC0-SNAPSHOT" and "1.2.0-RC.3")
+          FINAL_VERSION=$(echo "$CURRENT_VERSION" \
+            | sed -E 's/-SNAPSHOT$//' \
+            | sed -E 's/-RC\.?[0-9]*$//')
 
-      - name: Update Maven Version
+          if [ "$FINAL_VERSION" = "$CURRENT_VERSION" ]; then
+            echo "::warning::No SNAPSHOT/RC suffix found on '$CURRENT_VERSION' - releasing as-is."
+          fi
+
+          echo "Final version: $FINAL_VERSION"
+          echo "final_version=$FINAL_VERSION" >> "$GITHUB_OUTPUT"
+          echo "release_branch=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+
+      - name: Set final version in pom.xml
         run: |
-          mvn versions:set \
-          -DnewVersion=${{ steps.version.outputs.VERSION }}
+          mvn -B versions:set \
+            -DnewVersion="${{ steps.version.outputs.final_version }}" \
+            -DgenerateBackupPoms=false
 
-          mvn versions:commit
+      - name: Commit final version on release branch
+        id: commit
+        run: |
+          git add pom.xml
+          if git diff --cached --quiet; then
+            echo "pom.xml unchanged (version was already final) - nothing to commit"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "chore(release): set final version ${{ steps.version.outputs.final_version }}"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push version commit
+        if: steps.commit.outputs.changed == 'true'
+        run: git push origin "${{ steps.version.outputs.release_branch }}"
+
+      # -----------------------------------------------------------------
+      # 2. Build and deploy. If this step fails, the job stops here -
+      #    nothing below (merge, tag) ever runs.
+      # -----------------------------------------------------------------
+      - name: Build and deploy final artifact
+        run: mvn -B clean deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build Artifact
+      # -----------------------------------------------------------------
+      # 3. Only reached if deploy succeeded: merge into master
+      # -----------------------------------------------------------------
+      - name: Merge release branch into main
         run: |
-          mvn clean package
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          git fetch origin main
+          git checkout main
+          git pull origin main
+          git merge --no-ff "origin/${{ steps.version.outputs.release_branch }}" \
+            -m "chore: merge ${{ steps.version.outputs.release_branch }} into main (release ${{ steps.version.outputs.final_version }})"
+          git push origin main
 
-      - name: Deploy Artifact
+      - name: Tag release
         run: |
-          mvn deploy
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          git tag "v${{ steps.version.outputs.final_version }}"
+          git push origin "v${{ steps.version.outputs.final_version }}"
 
-
-      - name: Create Git Tag
+      # -----------------------------------------------------------------
+      # 4. Only reached once master + develop are both updated and pushed:
+      #    delete the release branch, it's served its purpose.
+      # -----------------------------------------------------------------
+      - name: Delete release branch
         run: |
-          git tag v${{ steps.version.outputs.VERSION }}
-          git push origin v${{ steps.version.outputs.VERSION }}
+          git push origin --delete "${{ steps.version.outputs.release_branch }}"
+
+      - name: Summary
+        run: |
+          echo "Released ${{ steps.version.outputs.final_version }} from ${{ steps.version.outputs.release_branch }}"
+          echo "Merged into main and tagged v${{ steps.version.outputs.final_version }}"
+          echo "Deleted release branch ${{ steps.version.outputs.release_branch }}"
