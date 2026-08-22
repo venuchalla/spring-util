@@ -1,0 +1,97 @@
+name: Pull Request Checks
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+      - release/*
+      - hotfix/*
+
+permissions:
+  contents: read
+  packages: read
+  checks: write
+  pull-requests: write
+
+jobs:
+
+  pr-checks:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # 1. Checkout source code
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. Setup Java and Maven
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 19
+          cache: maven
+
+      # 3. Get PR version
+      - name: Get PR Version
+        id: version
+        run: |
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "PR Version: $VERSION"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      # 4. Validate branch naming
+      - name: Validate Branch Name
+        run: |
+          BRANCH="${{ github.head_ref }}"
+
+          # Allowed patterns: feature/*, develop, release/*, hotfix/*, main
+          if [[ $BRANCH =~ ^(feature|release|hotfix)/ ]] || [[ $BRANCH == "develop" ]] || [[ $BRANCH == "main" ]]; then
+            echo "✅ Branch name '$BRANCH' is valid"
+          else
+            echo "❌ Invalid branch name: $BRANCH"
+            echo "   Allowed: feature/*, release/*, hotfix/*, develop, main"
+            exit 1
+          fi
+
+      # 5. Run unit tests
+      - name: Unit Tests
+        run: |
+          mvn test
+
+      # 6. Build
+      - name: Build
+        run: |
+          mvn clean package -DskipTests
+
+      # 7. Code quality checks
+      - name: Code Quality
+        run: |
+          mvn verify -DskipTests
+        continue-on-error: true
+
+  dependency-check:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 19
+          cache: maven
+
+      - name: Dependency Security Check
+        run: |
+          mvn dependency-check:check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
