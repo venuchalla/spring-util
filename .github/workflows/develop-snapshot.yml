@@ -1,0 +1,78 @@
+name: Develop Snapshot Build
+
+on:
+  push:
+    branches:
+      - develop
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-snapshot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 19
+          cache: maven
+          server-id: github
+
+      - name: Configure Git
+        run: git config user.name "venuchalla" && git config user.email "venuchalla1993@gmail.com"
+
+      - name: Determine Base Version
+        id: version
+        shell: bash
+        run: |
+          TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
+
+          if [ -n "$TAG" ]; then
+            echo "Git tag found: $TAG"
+
+            BASE_VERSION="${TAG#v}"
+          else
+            echo "No Git tag found. Reading effective POM version..."
+            # DO NOT grep the raw pom.xml for '<version>' - your pom has
+            # multiple <version> tags (parent, dependencies, plugins) and
+            # grep -m1 will match the FIRST one, which is the Spring Boot
+            # parent version (3.5.3), not your project's own version
+            # (0.0.1-SNAPSHOT). Ask Maven itself for the resolved version
+            # instead - it always returns YOUR artifact's version.
+            BASE_VERSION=$(mvn -q help:evaluate -Dexpression=project.version -DforceStdout)
+          fi
+
+          # Strip any trailing -SNAPSHOT from the base so we don't end up
+          # with "0.0.1-SNAPSHOT-RC0-SNAPSHOT"
+          BASE_VERSION="${BASE_VERSION}"
+
+          VERSION="${BASE_VERSION}"
+
+          echo "Base version: $BASE_VERSION"
+          echo "Build version: $VERSION"
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Set Maven Version
+        run: |
+          mvn versions:set \
+            -DnewVersion="${{ steps.version.outputs.version }}" \
+            -DgenerateBackupPoms=false
+
+      - name: Build and Deploy
+        run: mvn clean deploy -DskipTests
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Show Version
+        run: |
+          echo "✅ Deployed ${{ steps.version.outputs.version }}"
