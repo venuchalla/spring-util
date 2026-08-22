@@ -42,18 +42,18 @@ jobs:
             BASE_VERSION="${TAG#v}"
           else
             echo "No Git tag found. Reading effective POM version..."
-            # DO NOT grep the raw pom.xml for '<version>' - your pom has
-            # multiple <version> tags (parent, dependencies, plugins) and
-            # grep -m1 will match the FIRST one, which is the Spring Boot
-            # parent version (3.5.3), not your project's own version
-            # (0.0.1-SNAPSHOT). Ask Maven itself for the resolved version
-            # instead - it always returns YOUR artifact's version.
-            BASE_VERSION=$(mvn -q help:evaluate -Dexpression=project.version -DforceStdout)
+            # Resolves via Maven itself (not grep), so it correctly reads
+            # YOUR project's version, not the parent's.
+            # -q keeps this a clean, single-line value (required for
+            # GITHUB_OUTPUT). If it fails, re-run WITHOUT -q so the real
+            # error (e.g. a 401 resolving the parent POM) is visible in
+            # the log before we exit.
+            if ! BASE_VERSION=$(mvn -q help:evaluate -Dexpression=project.version -DforceStdout); then
+              echo "::error::Failed to resolve project.version - re-running verbosely for diagnostics:"
+              mvn help:evaluate -Dexpression=project.version -DforceStdout
+              exit 1
+            fi
           fi
-
-          # Strip any trailing -SNAPSHOT from the base so we don't end up
-          # with "0.0.1-SNAPSHOT-RC0-SNAPSHOT"
-          BASE_VERSION="${BASE_VERSION}"
 
           VERSION="${BASE_VERSION}"
 
@@ -61,12 +61,22 @@ jobs:
           echo "Build version: $VERSION"
 
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # ^ needed here too - resolving project.version means resolving
+          # the effective POM, which means resolving the parent POM
+          # (springparent) from GitHub Packages. Without this, this step
+          # 401s silently and the workflow dies right here.
 
       - name: Set Maven Version
         run: |
           mvn versions:set \
             -DnewVersion="${{ steps.version.outputs.version }}" \
             -DgenerateBackupPoms=false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # ^ same reason - versions:set also reads the effective POM
+          # (parent included) before it can rewrite the version.
 
       - name: Build and Deploy
         run: mvn clean deploy -DskipTests
