@@ -43,6 +43,8 @@ jobs:
           VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
           echo "PR Version: $VERSION"
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # 4. Validate branch naming
       - name: Validate Branch Name
@@ -67,11 +69,15 @@ jobs:
       - name: Build
         run: |
           mvn clean package -DskipTests
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # 7. Code quality checks
       - name: Code Quality
         run: |
           mvn verify -DskipTests
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
 
   dependency-check:
