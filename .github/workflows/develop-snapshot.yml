@@ -44,7 +44,15 @@ jobs:
             echo "No Git tag found. Reading effective POM version..."
             # Resolves via Maven itself (not grep), so it correctly reads
             # YOUR project's version, not the parent's.
-            BASE_VERSION=$(mvn help:evaluate -Dexpression=project.version -DforceStdout | grep -v '^\[')
+            # -q keeps this a clean, single-line value (required for
+            # GITHUB_OUTPUT). If it fails, re-run WITHOUT -q so the real
+            # error (e.g. a 401 resolving the parent POM) is visible in
+            # the log before we exit.
+            if ! BASE_VERSION=$(mvn -q help:evaluate -Dexpression=project.version -DforceStdout); then
+              echo "::error::Failed to resolve project.version - re-running verbosely for diagnostics:"
+              mvn help:evaluate -Dexpression=project.version -DforceStdout
+              exit 1
+            fi
           fi
 
           VERSION="${BASE_VERSION}"
